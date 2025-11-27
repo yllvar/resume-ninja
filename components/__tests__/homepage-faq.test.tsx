@@ -126,6 +126,6 @@ describe('HomepageFAQ Component', () => {
     render(<HomepageFAQ />)
     
     const container = screen.getByText('Frequently Asked Questions').closest('section')
-    expect(container).toHaveClass('py-20', 'sm:py-28')
+    expect(container).toHaveClass('py-20 sm:py-28')
   })
 })

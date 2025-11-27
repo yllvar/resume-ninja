@@ -1,15 +1,15 @@
 /**
  * AI Configuration for Resume Ninja
- * Uses AI Gateway with Gemini as primary model
+ * Uses Google Gemini AI
  */
 
 export const AI_CONFIG = {
-  // Primary model for resume analysis (best at structured extraction)
-  primaryModel: "google/gemini-2.5-flash",
+  // Primary model for resume analysis
+  primaryModel: "gemini-2.0-flash-exp",
   // Fast model for quick operations
-  fastModel: "google/gemini-2.5-flash",
+  fastModel: "gemini-2.0-flash-exp", 
   // Fallback if primary unavailable
-  fallbackModel: "openai/gpt-4o-mini",
+  fallbackModel: "gemini-2.0-flash-exp",
   // Max tokens for analysis
   maxOutputTokens: 4000,
   // Temperature for consistent outputs

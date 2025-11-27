@@ -1,6 +1,7 @@
 import { streamObject } from "ai"
 import { ResumeAnalysisSchema } from "@/lib/ai/schemas"
 import { getModel } from "@/lib/ai/config"
+import { getProvider } from "@/lib/ai/providers"
 import { buildPrompt, ANALYZE_RESUME_PROMPT } from "@/lib/ai/prompts"
 import { protectApiRoute, deductCreditsAfterSuccess } from "@/lib/api-utils"
 import { checkCredits } from "@/lib/credits"
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
     })
 
     const result = streamObject({
-      model: getModel("primary"),
+      model: getProvider(getModel("primary")),
       schema: ResumeAnalysisSchema,
       prompt,
       maxOutputTokens: 4000,

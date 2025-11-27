@@ -34,6 +34,9 @@ export async function Header() {
           <Link href="/#pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Pricing
           </Link>
+          <Link href="/whitepaper" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Whitepaper
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">

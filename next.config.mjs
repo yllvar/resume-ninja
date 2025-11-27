@@ -16,6 +16,8 @@ const nextConfig = {
     }
     return config
   },
+  // Turbopack configuration (empty to silence warning)
+  turbopack: {},
   // Ensure proper headers for worker files
   async headers() {
     return [

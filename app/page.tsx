@@ -4,6 +4,7 @@ import { Features } from "@/components/features"
 import { HowItWorks } from "@/components/how-it-works"
 import { Stats } from "@/components/stats"
 import { CTA } from "@/components/cta"
+import { HomepageFAQ } from "@/components/homepage-faq"
 import { Footer } from "@/components/footer"
 
 export default function HomePage() {
@@ -15,6 +16,7 @@ export default function HomePage() {
       <Features />
       <HowItWorks />
       <CTA />
+      <HomepageFAQ />
       <Footer />
     </main>
   )

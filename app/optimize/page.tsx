@@ -13,24 +13,34 @@ import { useResumeAnalysis } from "@/hooks/use-resume-analysis"
 export default function OptimizePage() {
   const [jobDescription, setJobDescription] = useState("")
   const [fileName, setFileName] = useState<string | null>(null)
-  const { status, progress, analysis, error, resumeText, analyze, reset } = useResumeAnalysis()
+  const [resumeText, setResumeText] = useState<string | null>(null)
+  const { status, progress, analysis, error, analyze, reset } = useResumeAnalysis()
 
   const handleTextExtracted = useCallback(
     (text: string, name: string) => {
       setFileName(name)
-      analyze(text, jobDescription || undefined)
+      setResumeText(text)
+      // Don't auto-analyze - wait for user to click execute button
     },
-    [analyze, jobDescription],
+    [],
   )
+
+  const handleExecuteAnalysis = useCallback(() => {
+    if (resumeText) {
+      analyze(resumeText, jobDescription || undefined)
+    }
+  }, [analyze, resumeText, jobDescription])
 
   const handleReset = () => {
     reset()
     setFileName(null)
+    setResumeText(null)
     setJobDescription("")
   }
 
   const isAnalyzing = status === "analyzing" || status === "parsing"
   const showResults = status === "complete" && analysis
+  const canExecuteAnalysis = resumeText && !isAnalyzing
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,7 +79,50 @@ export default function OptimizePage() {
             <div className="space-y-6">
               <ResumeDropzone onTextExtracted={handleTextExtracted} isProcessing={isAnalyzing} />
 
+              {resumeText && (
+                <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/10">
+                      <Sparkles className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">Resume uploaded successfully!</p>
+                      <p className="text-sm text-muted-foreground">{fileName}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <JobDescriptionInput value={jobDescription} onChange={setJobDescription} />
+
+              {/* Execute Analysis Button */}
+              {canExecuteAnalysis && (
+                <div className="flex flex-col items-center space-y-4">
+                  <Button 
+                    onClick={handleExecuteAnalysis}
+                    size="lg"
+                    className="w-full max-w-md"
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-5 w-5" />
+                        Execute Analysis
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-center text-sm text-muted-foreground">
+                    {jobDescription 
+                      ? "Ready to analyze your resume against the job description"
+                      : "Analyzing without a specific job description (general ATS check)"}
+                  </p>
+                </div>
+              )}
 
               {/* Analysis Progress */}
               {isAnalyzing && (

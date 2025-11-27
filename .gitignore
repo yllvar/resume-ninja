@@ -1,6 +1,14 @@
 node_modules
 .vercel
 .env
-lib/
-scripts/
+
+# Sensitive files with API keys and secrets
+lib/stripe.ts
+lib/supabase/admin.ts
+
+# Test files (optional)
+lib/__tests__/
+
+# Documentation and scripts
 docs/
+scripts/

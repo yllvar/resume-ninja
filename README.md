@@ -1,6 +1,6 @@
 # Resume Ninja – Project Documentation
 
-- **Live App**: https://resume-ninja.ai/
+- **Live App**: [https://resume-ninja.ai/](https://resume-ninja-ai.vercel.app)
 - **Framework**: Next.js 16 (App Router) + React 19
 - **Styling**: Tailwind CSS v4 + Radix UI + shadcn-inspired components
 - **Auth/DB**: Supabase (Postgres + Auth + RLS)

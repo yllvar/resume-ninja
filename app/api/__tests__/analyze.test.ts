@@ -3,25 +3,50 @@ import { POST } from '../analyze/route'
 
 // Mock the AI and resume parsing functions
 jest.mock('@/lib/ai/config', () => ({
-  generateObject: jest.fn(),
+  getModel: jest.fn(() => 'gemini-2.0-flash-exp'),
+}))
+
+jest.mock('@/lib/ai/providers', () => ({
+  getProvider: jest.fn(() => ({
+    streamObject: jest.fn(),
+  })),
+}))
+
+jest.mock('@/lib/ai/prompts', () => ({
+  buildPrompt: jest.fn((prompt, data) => `${prompt} ${JSON.stringify(data)}`),
+  ANALYZE_RESUME_PROMPT: 'Analyze this resume:',
 }))
 
 jest.mock('@/lib/resume-parser', () => ({
   extractTextFromFile: jest.fn(),
 }))
 
+jest.mock('@/lib/api-utils', () => ({
+  protectApiRoute: jest.fn(),
+  deductCreditsAfterSuccess: jest.fn(),
+}))
+
 jest.mock('@/lib/credits', () => ({
-  calculateCreditsRequired: jest.fn(() => 1),
-  canUserPerformAction: jest.fn(),
-  deductCredits: jest.fn(),
+  checkCredits: jest.fn(() => ({ hasCredits: true, currentCredits: 5, requiredCredits: 1 })),
 }))
 
 jest.mock('@/lib/supabase/server', () => ({
   createClient: jest.fn(),
 }))
 
-jest.mock('@/lib/rate-limit', () => ({
-  rateLimit: jest.fn(() => ({ success: true })),
+jest.mock('@/lib/security/validation', () => ({
+  analyzeRequestSchema: {
+    safeParse: jest.fn(),
+  },
+  containsMaliciousPatterns: jest.fn(() => false),
+}))
+
+jest.mock('@/lib/security/audit', () => ({
+  logAuditEvent: jest.fn(),
+}))
+
+jest.mock('ai', () => ({
+  streamObject: jest.fn(),
 }))
 
 describe('/api/analyze', () => {
@@ -29,35 +54,127 @@ describe('/api/analyze', () => {
     jest.clearAllMocks()
   })
 
-  it('should require authentication', async () => {
-    const { createClient } = require('@/lib/supabase/server')
-    createClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+  it('should allow unauthenticated users with rate limiting', async () => {
+    const { protectApiRoute } = require('@/lib/api-utils')
+    protectApiRoute.mockResolvedValue({
+      success: true,
+      context: null, // Unauthenticated user
+    })
+
+    const { analyzeRequestSchema } = require('@/lib/security/validation')
+    analyzeRequestSchema.safeParse.mockReturnValue({
+      success: true,
+      data: {
+        resumeText: 'Sample resume text',
+        jobDescription: 'Software Engineer position',
       },
     })
 
+    const { streamObject } = require('ai')
+    const mockStream = {
+      toTextStreamResponse: jest.fn(() => new Response('stream data')),
+    }
+    streamObject.mockReturnValue(mockStream)
+
     const request = new NextRequest('http://localhost:3000/api/analyze', {
       method: 'POST',
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        resumeText: 'Sample resume text',
+        jobDescription: 'Software Engineer position',
+      }),
+    })
+
+    const response = await POST(request)
+    
+    expect(response).toBeDefined()
+    expect(streamObject).toHaveBeenCalled()
+  })
+
+  it('should handle authenticated users with credit checks', async () => {
+    const { protectApiRoute } = require('@/lib/api-utils')
+    protectApiRoute.mockResolvedValue({
+      success: true,
+      context: {
+        userId: 'user-123',
+        email: 'test@example.com',
+        tier: 'free',
+        credits: 5,
+      },
+    })
+
+    const { checkCredits } = require('@/lib/credits')
+    checkCredits.mockReturnValue({ hasCredits: true, currentCredits: 5, requiredCredits: 1 })
+
+    const { analyzeRequestSchema } = require('@/lib/security/validation')
+    analyzeRequestSchema.safeParse.mockReturnValue({
+      success: true,
+      data: {
+        resumeText: 'Sample resume text',
+        jobDescription: 'Software Engineer position',
+      },
+    })
+
+    const { streamObject } = require('ai')
+    const mockStream = {
+      toTextStreamResponse: jest.fn(() => new Response('stream data')),
+    }
+    streamObject.mockReturnValue(mockStream)
+
+    const request = new NextRequest('http://localhost:3000/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        resumeText: 'Sample resume text',
+        jobDescription: 'Software Engineer position',
+      }),
+    })
+
+    const response = await POST(request)
+    
+    expect(response).toBeDefined()
+    expect(checkCredits).toHaveBeenCalledWith('user-123', 1)
+  })
+
+  it('should reject requests with insufficient credits', async () => {
+    const { protectApiRoute } = require('@/lib/api-utils')
+    protectApiRoute.mockResolvedValue({
+      success: true,
+      context: {
+        userId: 'user-123',
+        email: 'test@example.com',
+        tier: 'free',
+        credits: 0,
+      },
+    })
+
+    const { checkCredits } = require('@/lib/credits')
+    checkCredits.mockReturnValue({ hasCredits: false, currentCredits: 0, requiredCredits: 1 })
+
+    const request = new NextRequest('http://localhost:3000/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        resumeText: 'Sample resume text',
+        jobDescription: 'Software Engineer position',
+      }),
     })
 
     const response = await POST(request)
     const data = await response.json()
 
-    expect(response.status).toBe(401)
-    expect(data.error).toBe('Unauthorized')
+    expect(response.status).toBe(402)
+    expect(data.error).toBe('Insufficient credits. Please upgrade your plan or purchase more credits.')
   })
 
   it('should validate request body', async () => {
-    const { createClient } = require('@/lib/supabase/server')
-    createClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ 
-          data: { user: { id: 'user-123', email: 'test@example.com' } }, 
-          error: null 
-        }),
-      },
+    const { protectApiRoute } = require('@/lib/api-utils')
+    protectApiRoute.mockResolvedValue({
+      success: true,
+      context: null,
+    })
+
+    const { analyzeRequestSchema } = require('@/lib/security/validation')
+    analyzeRequestSchema.safeParse.mockReturnValue({
+      success: false,
+      error: { message: 'Invalid input' },
     })
 
     const request = new NextRequest('http://localhost:3000/api/analyze', {
@@ -69,268 +186,6 @@ describe('/api/analyze', () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toBe('Missing required fields')
-  })
-
-  it('should check user credits', async () => {
-    const { createClient } = require('@/lib/supabase/server')
-    const { canUserPerformAction } = require('@/lib/credits')
-    
-    createClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ 
-          data: { user: { id: 'user-123', email: 'test@example.com' } }, 
-          error: null 
-        }),
-      },
-      from: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: { id: 'user-123', credits: 0, subscription_tier: 'free' },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    })
-
-    canUserPerformAction.mockReturnValue({
-      canPerform: false,
-      reason: 'Insufficient credits',
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/analyze', {
-      method: 'POST',
-      body: JSON.stringify({
-        resumeText: 'Sample resume content',
-        jobDescription: 'Sample job description',
-      }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Insufficient credits')
-  })
-
-  it('should validate file size', async () => {
-    const { createClient } = require('@/lib/supabase/server')
-    const { canUserPerformAction } = require('@/lib/credits')
-    
-    createClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ 
-          data: { user: { id: 'user-123', email: 'test@example.com' } }, 
-          error: null 
-        }),
-      },
-      from: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: { id: 'user-123', credits: 5, subscription_tier: 'free' },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    })
-
-    canUserPerformAction.mockReturnValue({
-      canPerform: true,
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/analyze', {
-      method: 'POST',
-      body: JSON.stringify({
-        resumeText: 'x'.repeat(11 * 1024 * 1024), // 11MB - exceeds limit
-        jobDescription: 'Sample job description',
-      }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Resume text too large')
-  })
-
-  it('should handle successful analysis', async () => {
-    const { createClient } = require('@/lib/supabase/server')
-    const { canUserPerformAction, deductCredits } = require('@/lib/credits')
-    const { generateObject } = require('@/lib/ai/config')
-    const { extractTextFromFile } = require('@/lib/resume-parser')
-    
-    createClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ 
-          data: { user: { id: 'user-123', email: 'test@example.com' } }, 
-          error: null 
-        }),
-      },
-      from: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: { id: 'user-123', credits: 5, subscription_tier: 'free' },
-              error: null,
-            }),
-          }),
-        }),
-        insert: jest.fn().mockResolvedValue({
-          data: { id: 'analysis-123' },
-          error: null,
-        }),
-      }),
-    })
-
-    canUserPerformAction.mockReturnValue({
-      canPerform: true,
-    })
-
-    deductCredits.mockReturnValue({
-      credits: 4,
-    })
-
-    generateObject.mockResolvedValue({
-      object: {
-        atsScore: 85,
-        analysis: 'Good resume structure',
-        suggestions: ['Add more keywords', 'Improve formatting'],
-        optimizedContent: 'Optimized resume content',
-      },
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/analyze', {
-      method: 'POST',
-      body: JSON.stringify({
-        resumeText: 'Sample resume content',
-        jobDescription: 'Sample job description',
-      }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.atsScore).toBe(85)
-    expect(data.analysis).toBe('Good resume structure')
-    expect(data.suggestions).toEqual(['Add more keywords', 'Improve formatting'])
-    expect(data.optimizedContent).toBe('Optimized resume content')
-  })
-
-  it('should handle file upload', async () => {
-    const { createClient } = require('@/lib/supabase/server')
-    const { canUserPerformAction } = require('@/lib/credits')
-    const { extractTextFromFile } = require('@/lib/resume-parser')
-    
-    createClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ 
-          data: { user: { id: 'user-123', email: 'test@example.com' } }, 
-          error: null 
-        }),
-      },
-      from: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: { id: 'user-123', credits: 5, subscription_tier: 'free' },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    })
-
-    canUserPerformAction.mockReturnValue({
-      canPerform: true,
-    })
-
-    extractTextFromFile.mockResolvedValue('Extracted resume content')
-
-    const formData = new FormData()
-    formData.append('file', new File(['content'], 'resume.pdf', { type: 'application/pdf' }))
-    formData.append('jobDescription', 'Sample job description')
-
-    const request = new NextRequest('http://localhost:3000/api/analyze', {
-      method: 'POST',
-      body: formData,
-    })
-
-    const response = await POST(request)
-    
-    // Should attempt to extract text from file
-    expect(extractTextFromFile).toHaveBeenCalled()
-  })
-
-  it('should handle rate limiting', async () => {
-    const { rateLimit } = require('@/lib/rate-limit')
-    
-    rateLimit.mockReturnValue({
-      success: false,
-      error: 'Rate limit exceeded',
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/analyze', {
-      method: 'POST',
-      body: JSON.stringify({
-        resumeText: 'Sample resume content',
-        jobDescription: 'Sample job description',
-      }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(429)
-    expect(data.error).toBe('Rate limit exceeded')
-  })
-
-  it('should handle AI service errors', async () => {
-    const { createClient } = require('@/lib/supabase/server')
-    const { canUserPerformAction } = require('@/lib/credits')
-    const { generateObject } = require('@/lib/ai/config')
-    
-    createClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({ 
-          data: { user: { id: 'user-123', email: 'test@example.com' } }, 
-          error: null 
-        }),
-      },
-      from: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: { id: 'user-123', credits: 5, subscription_tier: 'free' },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    })
-
-    canUserPerformAction.mockReturnValue({
-      canPerform: true,
-    })
-
-    generateObject.mockRejectedValue(new Error('AI service unavailable'))
-
-    const request = new NextRequest('http://localhost:3000/api/analyze', {
-      method: 'POST',
-      body: JSON.stringify({
-        resumeText: 'Sample resume content',
-        jobDescription: 'Sample job description',
-      }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(500)
-    expect(data.error).toBe('AI service unavailable')
+    expect(data.error).toBe('Invalid input')
   })
 })

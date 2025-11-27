@@ -3,10 +3,41 @@ require('@testing-library/jest-dom')
 // Mock Next.js Request object for API routes
 global.Request = class Request {
   constructor(input, init) {
-    this.url = input
+    Object.defineProperty(this, 'url', {
+      value: input,
+      writable: false,
+      configurable: true,
+    })
     this.method = init?.method || 'GET'
     this.headers = new Map(Object.entries(init?.headers || {}))
     this.body = init?.body
+  }
+
+  async json() {
+    return typeof this.body === 'string' ? JSON.parse(this.body) : this.body
+  }
+
+  async text() {
+    return typeof this.body === 'string' ? this.body : JSON.stringify(this.body)
+  }
+}
+
+// Mock Next.js Response object for API routes
+global.Response = class Response {
+  constructor(body, init = {}) {
+    this.body = body
+    this.status = init.status || 200
+    this.headers = new Map(Object.entries(init.headers || {}))
+  }
+
+  static json(data, init = {}) {
+    return new Response(JSON.stringify(data), {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers || {})
+      }
+    })
   }
 
   async json() {

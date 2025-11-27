@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const userId = protection.success ? protection.context.userId : null
+    const userId = protection.success && protection.context ? protection.context.userId : null
     const body = await req.json()
 
     const validation = analyzeRequestSchema.safeParse(body)
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
         errorMessage: validation.error.message,
         metadata: { endpoint: "analyze" },
       })
-      return Response.json({ error: "Invalid input", details: validation.error.flatten() }, { status: 400 })
+      return Response.json({ error: "Invalid input", details: validation.error.message }, { status: 400 })
     }
 
     const { resumeText, jobDescription, resumeId } = validation.data

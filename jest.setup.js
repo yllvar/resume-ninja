@@ -93,7 +93,7 @@ jest.mock('mammoth', () => ({
   })),
 }))
 
-// Mock Vercel Analytics
+// Mock Resume Ninja Analytics
 jest.mock('@vercel/analytics/next', () => ({
   Analytics: () => null,
 }))

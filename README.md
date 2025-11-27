@@ -1,11 +1,11 @@
 # Resume Ninja – Project Documentation
 
-- **Live App**: https://resume-ninja-ai.vercel.app/
+- **Live App**: https://resume-ninja.ai/
 - **Framework**: Next.js 16 (App Router) + React 19
 - **Styling**: Tailwind CSS v4 + Radix UI + shadcn-inspired components
 - **Auth/DB**: Supabase (Postgres + Auth + RLS)
 - **Rate Limiting**: Upstash Redis + @upstash/ratelimit
-- **AI**: Vercel AI SDK (primary: Google Gemini 2.5 Pro) with structured JSON streaming via Zod schemas
+- **AI**: Resume Ninja AI SDK (primary: Google Gemini 2.5 Pro) with structured JSON streaming via Zod schemas
 
 
 ## Overview
@@ -15,7 +15,7 @@ Resume Ninja analyzes and optimizes resumes for ATS compatibility. Users upload 
 ## Architecture
 - **Next.js App Router** under `app/` drives pages and API routes.
 - **Supabase SSR** clients provide authenticated requests in server components and API handlers.
-- **AI layer** streams structured objects (Zod) using Vercel AI SDK; prompts/templates live in `lib/ai/`.
+- **AI layer** streams structured objects (Zod) using Resume Ninja AI SDK; prompts/templates live in `lib/ai/`.
 - **Credits and rate limits** are enforced on protected routes via helpers in `lib/api-utils.ts` and `lib/rate-limit.ts`.
 - **Database** schema and security are managed with SQL in `scripts/` and Supabase RLS policies.
 - **Security** middleware guards protected paths and sets security headers.
@@ -101,7 +101,7 @@ Types referenced in code: `lib/supabase/types.ts`.
 
 
 ## API Endpoints
-All endpoints require authenticated Supabase session unless otherwise noted. Responses are JSON; streaming endpoints use Vercel AI SDK streaming.
+All endpoints require authenticated Supabase session unless otherwise noted. Responses are JSON; streaming endpoints use Resume Ninja AI SDK streaming.
 
 - POST `/api/analyze`
   - Body: `{ resumeText: string, jobDescription?: string, resumeId?: string }`
@@ -164,8 +164,8 @@ All endpoints require authenticated Supabase session unless otherwise noted. Res
    - `pnpm dev` and open `http://localhost:3000`
 
 
-## Deployment (Vercel)
-- Set all required environment variables in Vercel Project Settings → Environment Variables.
+## Deployment
+- Set all required environment variables in your hosting platform's Environment Variables.
 - Build command: `next build` (default). Output handled by Next.js App Router.
 - Images are marked `unoptimized: true` in `next.config.mjs` for portability.
 - Ensure Supabase URL and keys match the deployed project. Upstash tokens must be configured in the same environment.

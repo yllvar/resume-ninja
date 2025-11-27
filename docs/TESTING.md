@@ -120,7 +120,7 @@ npm run test:coverage
 - **Supabase Client**: Authentication and database operations
 - **PDF.js**: PDF parsing functionality
 - **File API**: File reading and manipulation
-- **Vercel Analytics**: Analytics component
+- **Resume Ninja Analytics**: Analytics component
 - **Browser APIs**: IntersectionObserver, ResizeObserver, matchMedia
 
 ### Environment Setup

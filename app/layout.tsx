@@ -12,10 +12,10 @@ export const metadata: Metadata = {
   title: "Resume Ninja - ATS Resume Optimizer",
   description:
     "Transform any resume into ATS-perfected versions with AI-powered analysis. Beat applicant tracking systems and land more interviews.",
-  generator: "v0.app",
+  generator: "Resume Ninja",
   icons: {
     icon: [
-      { url: "/favicon.jpg", sizes: "32x32", type: "image/jpeg" },
+      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
       { url: "/icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
     apple: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
       { url: "/images/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
       { url: "/images/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.jpg",
+    shortcut: "/favicon.ico",
     other: [
       {
         rel: "mask-icon",

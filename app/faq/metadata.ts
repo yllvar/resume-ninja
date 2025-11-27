@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "FAQ - Resume Ninja",
     description: "Get answers to common questions about Resume Ninja's AI-powered resume optimization platform and ATS compatibility.",
-    url: "https://resume-ninja-ai.vercel.app/faq",
+    url: "https://resume-ninja.ai/faq",
     siteName: "Resume Ninja",
     locale: "en_US",
     type: "website",

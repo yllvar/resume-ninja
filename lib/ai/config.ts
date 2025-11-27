@@ -1,6 +1,6 @@
 /**
  * AI Configuration for Resume Ninja
- * Uses Vercel AI Gateway with Gemini as primary model
+ * Uses AI Gateway with Gemini as primary model
  */
 
 export const AI_CONFIG = {
